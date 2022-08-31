@@ -19,7 +19,7 @@ be allowed.
 ## What about the edge cases ?
 ### What happen if the user tries to trick the frontend to pay without / before calling the backend ?
 He will never receive his NFT ...
-### What happen if the user try to contract mint ?
+### What happen if the user tries to contract mint ?
 Nft.mint() is using the onlyRole(MINTER) modifier. Therefor the user will not be
 able to mint.
 ### Can the user do the mint without clicking on the mint button ?

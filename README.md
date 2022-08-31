@@ -17,7 +17,7 @@ be allowed.
 > $ npm i  
 > $ npx hardhat test
 ## What about the edge cases ?
-### What happen if the tries to trick the frontend to pay without / before calling the backend ?
+### What happen if the user tries to trick the frontend to pay without / before calling the backend ?
 He will never receive his NFT ...
 ### What happen if the user try to contract mint ?
 Nft.mint() is using the onlyRole(MINTER) modifier. Therefor the user will not be

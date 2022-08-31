@@ -14,8 +14,8 @@ be allowed.
 4. User pay the mint which generates a OnePlaceMint.Payed event ;
 5. Backend hook to this event and calls Nft.mint().
 ## Run the tests
-npm i  
-npx hardhat test
+> $ npm i  
+> $ npx hardhat test
 ## What about the edge cases ?
 ### What happen if the tries to trick the frontend to pay without / before calling the backend ?
 He will never receive his NFT ...

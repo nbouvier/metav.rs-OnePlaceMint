@@ -14,7 +14,7 @@ const bnArrayFrom = (array: number[]) => array.map((el: number) => BigNumber.fro
 
 describe("OnePlaceMint", function () {
 
-    let accounts: Signer[];
+    let accounts: any[];
     let Nft: any;
     let OnePlaceMint: any;
 
@@ -22,76 +22,51 @@ describe("OnePlaceMint", function () {
         accounts = await ethers.getSigners();
 
         Nft = await deploy("Nft");
-        OnePlaceMint = await deploy("OnePlaceMint", [ Nft.address ]);
-        await OnePlaceMint.grantRole(await OnePlaceMint.MINTER(), await accounts[0].getAddress());
-
         expect(await Nft.totalTokens()).to.equal(0);
-        expect(await Nft.balanceOf(await accounts[1].getAddress())).to.equal(0);
+        expect(await Nft.balanceOf(accounts[1].address)).to.equal(0);
+        await Nft.grantRole(await Nft.MINTER(), accounts[0].address);
+
+        OnePlaceMint = await deploy("OnePlaceMint");
+        expect(await OnePlaceMint.bank()).to.equal(accounts[0].address);
+        expect(await OnePlaceMint.totalPayedNfts()).to.equal(0);
     });
 
-    describe("One operation, pay first", function() {
-        it("should send 3 NFTs", async function() {
-            await OnePlaceMint.connect(accounts[1]).payMint(3, { value: toWei("0.01").mul(3) });
-            await OnePlaceMint.mint(await accounts[1].getAddress(), 3);
-            expect(await Nft.balanceOf(await accounts[1].getAddress())).to.equal(3);
+    describe("#Nft.safeMint()", function() {
+        it("should only be accessible for MINTERs", async function() {
+            await expect(Nft.connect(accounts[1]).safeMint(accounts[1].address, 1)).to.be.rejected;
+            await expect(Nft.safeMint(accounts[1].address, 1)).to.not.be.rejected;
         });
-        it("should not send 5 NFTs", async function() {
-            await OnePlaceMint.connect(accounts[1]).payMint(3, { value: toWei("0.01").mul(3) });
-            await OnePlaceMint.mint(await accounts[1].getAddress(), 3);
-            await OnePlaceMint.mint(await accounts[1].getAddress(), 2);
-            expect(await Nft.balanceOf(await accounts[1].getAddress())).to.equal(3);
+        it("should send NFT to given address", async function() {
+            await Nft.safeMint(accounts[1].address, 2);
+            expect(await Nft.balanceOf(accounts[1].address)).to.equal(2);
+            expect(await Nft.ownerOf(1)).to.equal(accounts[1].address);
+            expect(await Nft.ownerOf(2)).to.equal(accounts[1].address);
         });
-    });
-
-    describe("One operation, mint first", function() {
-        it("should send 3 NFTs", async function() {
-            await OnePlaceMint.mint(await accounts[1].getAddress(), 3);
-            await OnePlaceMint.connect(accounts[1]).payMint(3, { value: toWei("0.01").mul(3) });
-            expect(await Nft.balanceOf(await accounts[1].getAddress())).to.equal(3);
-        });
-        it("should not send 5 NFTs", async function() {
-            await OnePlaceMint.mint(await accounts[1].getAddress(), 3);
-            await OnePlaceMint.connect(accounts[1]).payMint(3, { value: toWei("0.01").mul(3) });
-            await OnePlaceMint.mint(await accounts[1].getAddress(), 2);
-            expect(await Nft.balanceOf(await accounts[1].getAddress())).to.equal(3);
+        it("should increase totalTokens", async function() {
+            expect(await Nft.totalTokens()).to.equal(0);
+            await Nft.safeMint(accounts[1].address, 1);
+            expect(await Nft.totalTokens()).to.equal(1);
+            await Nft.safeMint(accounts[1].address, 3);
+            expect(await Nft.totalTokens()).to.equal(4);
         });
     });
 
-    describe("Two operations, pay first", function() {
-        it("should send 5 NFTs", async function() {
-            await OnePlaceMint.connect(accounts[1]).payMint(3, { value: toWei("0.01").mul(3) });
-            await OnePlaceMint.connect(accounts[1]).payMint(2, { value: toWei("0.01").mul(2) });
-            await OnePlaceMint.mint(await accounts[1].getAddress(), 3);
-            expect(await Nft.balanceOf(await accounts[1].getAddress())).to.equal(3);
-            await OnePlaceMint.mint(await accounts[1].getAddress(), 2);
-            expect(await Nft.balanceOf(await accounts[1].getAddress())).to.equal(5);
+    describe("#OnePlaceMint.payMint()", function() {
+        it("should revert if not enough ether", async function() {
+            await expect(OnePlaceMint.connect(accounts[1]).payMint(1, { value: toWei('0.001') })).to.be.rejected;
         });
-        it("should not send 7 NFTs", async function() {
-            await OnePlaceMint.connect(accounts[1]).payMint(3, { value: toWei("0.01").mul(3) });
-            await OnePlaceMint.connect(accounts[1]).payMint(2, { value: toWei("0.01").mul(2) });
-            await OnePlaceMint.mint(await accounts[1].getAddress(), 3);
-            await OnePlaceMint.mint(await accounts[1].getAddress(), 2);
-            await OnePlaceMint.mint(await accounts[1].getAddress(), 2);
-            expect(await Nft.balanceOf(await accounts[1].getAddress())).to.equal(5);
+        it("should revert if paying over max mints", async function() {
+            await expect(OnePlaceMint.connect(accounts[1]).payMint(101, { value: toWei('1.01') })).to.be.rejected;
+            await expect(OnePlaceMint.connect(accounts[1]).payMint(80, { value: toWei('0.8') })).to.not.be.rejected;
+            await expect(OnePlaceMint.connect(accounts[1]).payMint(21, { value: toWei('0.21') })).to.be.rejected;
         });
-    });
-
-    describe("Two operations, mint first", function() {
-        it("should send 5 NFTs", async function() {
-            await OnePlaceMint.mint(await accounts[1].getAddress(), 3);
-            await OnePlaceMint.mint(await accounts[1].getAddress(), 2);
-            await OnePlaceMint.connect(accounts[1]).payMint(3, { value: toWei("0.01").mul(3) });
-            expect(await Nft.balanceOf(await accounts[1].getAddress())).to.equal(3);
-            await OnePlaceMint.connect(accounts[1]).payMint(2, { value: toWei("0.01").mul(2) });
-            expect(await Nft.balanceOf(await accounts[1].getAddress())).to.equal(5);
+        it("should transfer founds to bank", async function() {
+            const oldBalance = await ethers.provider.getBalance(accounts[0].address);
+            await OnePlaceMint.connect(accounts[1]).payMint(1, { value: toWei('0.01') });
+            expect(await ethers.provider.getBalance(accounts[0].address)).to.equal(oldBalance.add(toWei('0.01')));
         });
-        it("should not send 7 NFTs", async function() {
-            await OnePlaceMint.mint(await accounts[1].getAddress(), 3);
-            await OnePlaceMint.mint(await accounts[1].getAddress(), 2);
-            await OnePlaceMint.connect(accounts[1]).payMint(3, { value: toWei("0.01").mul(3) });
-            await OnePlaceMint.connect(accounts[1]).payMint(2, { value: toWei("0.01").mul(2) });
-            await OnePlaceMint.mint(await accounts[1].getAddress(), 2);
-            expect(await Nft.balanceOf(await accounts[1].getAddress())).to.equal(5);
+        it("should emit Payed event", async function() {
+            expect(await OnePlaceMint.connect(accounts[1]).payMint(1, { value: toWei('0.01') })).to.emit(OnePlaceMint, 'Payed').withArgs(accounts[1].address, 1);
         });
     });
 });
